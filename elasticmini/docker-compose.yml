@@ -1,0 +1,113 @@
+version: "3.7"
+
+services:
+  backend:
+    container_name: elastic_app
+    build: .
+    ports:
+      - "$FLASK_RUN_PORT:$FLASK_RUN_PORT"
+    networks:
+      - elastic_network
+    env_file:
+      - .env
+    #command: gunicorn -w 5 -t 30 -b 0.0.0.0:5000 "elastic:create_app()"
+    links:
+      - redis
+    # volumes - DEV only - to enable reloading of dev server on file changes
+
+    # volumes:
+
+    #    - ./elastic:/app/elastic
+
+    # restart - DEV only - mysql image is not ready for flask to connect, so it fails 1st time.
+
+    # This will retry connection for 3 times before throwing errors.
+    restart: on-failure:5
+    depends_on:
+      - redis
+      #- mysql
+      - mssql
+  mssql:
+    container_name: elastic_mssql
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    networks:
+      - elastic_network
+    environment:
+      SA_PASSWORD: Password12345
+      ACCEPT_EULA: Y
+      # MSSQL_USER: "sa"
+
+      # MSSQL_PASSWORD: "Password12345"
+      MSSQL_DB: elastic
+    ports:
+      - "1433:1433"
+    expose:
+      - "1433"
+  # mysql:
+
+  #   container_name: elastic_mysql
+
+  #   image: mysql
+
+  #   networks:
+
+  #     - elastic_network
+
+  #     # environment - DEV only - can be moved to separate env file
+
+  #   environment:
+
+  #     MYSQL_ROOT_USER: root
+
+  #     MYSQL_ROOT_PASSWORD: password
+
+  #     MYSQL_DATABASE: elastic
+
+  #     # Port 3308 is exposed for DEV only. To connect from host machine to container.
+
+  #     # Container to container connection will happen on port 3306
+
+  #   ports:
+
+  #     - "3308:3306"
+
+  #   expose:
+
+  #     - "3306"
+
+  #     # volumes - DEV only - to retain the stored data while development
+
+  #   #volumes:
+
+  #   #  - "./docker/volumes/vol_mysql:/var/lib/mysql:rw"
+
+  #   command:
+
+  #     [
+
+  #       "mysqld",
+
+  #       "--character-set-server=latin1",
+
+  #       "--collation-server=latin1_swedish_ci",
+
+  #     ]
+  redis:
+    container_name: elastic_redis
+    env_file:
+      - .env
+    # ports:
+    #   - "6379:6379"
+    networks:
+      - elastic_network
+    image: redis:alpine
+    # CACHE_SECRET variable is present in .env file.
+    command:
+      [
+        "sh",
+        "-c",
+        'exec redis-server --requirepass "$CACHE_SECRET"'
+      ]
+networks:
+  elastic_network:
+    driver: bridge
