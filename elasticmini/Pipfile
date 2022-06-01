@@ -1,0 +1,51 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+pymssql = "*"
+python-dotenv = "*"
+flask-sqlalchemy = "*"
+cryptography = "*"
+flask-marshmallow = "*"
+marshmallow-sqlalchemy = "*"
+flask-caching = "*"
+redis = "*"
+flask-cors = "*"
+email-validator = "*"
+flask-praetorian = "*"
+flask-migrate = "*"
+pandas = "*"
+networkx = "*"
+azure-storage-blob = "*"
+xlrd = "*"
+msal = "*"
+openpyxl = "*"
+pyexcel = "*"
+pyexcel-xlsx = "*"
+flask-admin = "*"
+flask-basicauth = "*"
+snowflake-connector-python = "*"
+openpyexcel = "*"
+paranoid = "*"
+sqlalchemy-views = "*"
+flask-apscheduler = "*"
+flask-mail-sendgrid = "*"
+flask-mail = "*"
+flask-restx = "*"
+flask = "*"
+tzlocal = "==2.1"
+
+[dev-packages]
+pylint = "*"
+black = "==19.10b0"
+pytest = "*"
+pytest-flask = "*"
+requests-mock = "*"
+
+[requires]
+python_version = "3.8"
+
+[pipenv]
+allow_prereleases = true
