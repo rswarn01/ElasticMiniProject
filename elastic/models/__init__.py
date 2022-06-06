@@ -1,7 +1,6 @@
 from sqlalchemy.dialects.mssql import TINYINT
-from sqlalchemy import DECIMAL
+from sqlalchemy import DECIMAL, NVARCHAR
 from sqlalchemy.orm import relationship
-from elastic.constants import get_action_cache_key, SPEND, PRICE, SAVINGS
 from sqlalchemy.sql.schema import PrimaryKeyConstraint
 
 
@@ -298,4 +297,11 @@ class User(db.Model):
         ).all()
         user_ids = [user.user_id for user in users]
         return user_ids
+
+class Twits(db.Model):
+    __tablename__ = "twits"
+    twit_id = Column(INTEGER, primary_key=True)
+    user_name = Column(NVARCHAR(100))
+    uploaded_on = Column(DateTime, default=datetime.now())
+    twits= Column(NVARCHAR(5000))
 

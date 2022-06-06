@@ -3,11 +3,11 @@ from flask_restx import Api as RestX_Api
 from elastic.models import User
 from os import getenv
 from elastic.commands import elastic_cli
-
 from elastic import extensions
 
-
 from elastic.auth.v1 import auth_api_v1
+from elastic.fill_data_db.v1 import fill_data_db_api_v1
+from elastic.crud.v1 import crud_api_v1
 
 api_blueprint = Blueprint("api", __name__, url_prefix="/api")
 
@@ -30,6 +30,8 @@ rest_api = RestX_Api(
 )
 
 rest_api.add_namespace(auth_api_v1, path="/v1/auth")
+rest_api.add_namespace(fill_data_db_api_v1, path="/v1/data_fill")
+rest_api.add_namespace(crud_api_v1, path="/v1/crud-operations")
 
 def create_app():
     """Create the flask app and intialize all the extensions"""
