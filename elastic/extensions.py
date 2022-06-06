@@ -1,5 +1,4 @@
 import logging
-
 from flask_sqlalchemy import SQLAlchemy as _BaseSQLAlchemy
 from flask_marshmallow import Marshmallow
 from flask_caching import Cache
@@ -7,8 +6,9 @@ from flask_cors import CORS
 from flask_praetorian import Praetorian
 from flask_migrate import Migrate
 from elastic.utils.flask_azure import FlaskAzure
-from flask_mail_sendgrid import MailSendGrid
-from flask_apscheduler import APScheduler
+from datetime import datetime
+from elasticsearch import Elasticsearch
+
 
 from elastic.utils.flask_azure import FlaskAzure
 from elastic.utils.flask_snowflake import FlaskSnowflake
@@ -26,9 +26,8 @@ mm = Marshmallow()
 cache = Cache()
 guard = Praetorian()
 azure = FlaskAzure()
-mail = MailSendGrid()
 snowflake = FlaskSnowflake()
-scheduler = APScheduler()
+es = Elasticsearch('http://localhost:9200')
 
 
 def init_extensions(app):
@@ -40,7 +39,6 @@ def init_extensions(app):
     # marshmallow
     mm.init_app(app)
     azure.init_app(app)
-    mail.init_app(app)
 
     # blob
     azure.init_app(app)

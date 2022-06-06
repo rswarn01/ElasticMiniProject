@@ -37,10 +37,11 @@ class BaseConfig(object):
     MAIL_DEFAULT_SENDER = os.getenv("MAIL_SENDER")
     MAIL_SENDGRID_API_KEY = os.getenv("MAIL_SENDGRID_API_KEY")
 
-    SQLALCHEMY_DATABASE_URI = (
-        f"mssql+pymssql://{APP_DB_USER}:%s@{APP_DB_HOST}:{APP_DB_PORT}/{APP_DB_NAME}"
-        % urlquote(APP_DB_SECRET)
-    )
+    # SQLALCHEMY_DATABASE_URI = (
+    #     f"mssql+pymssql://{APP_DB_USER}:%s@{APP_DB_HOST}:{APP_DB_PORT}/{APP_DB_NAME}"
+    #     % urlquote(APP_DB_SECRET)
+    # )
+    SQLALCHEMY_DATABASE_URI = "mssql+pymssql://sa:Password12345@localhost/elasticdb"
 
     # to disable logs of sqlalchemy
     SQLALCHEMY_ECHO = False

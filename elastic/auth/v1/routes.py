@@ -59,6 +59,6 @@ class AuthLogoutUrl(Resource):
 class SimpleGetToken(Resource):
     def get(self):
         """Get azure login url for the app"""
-        user = User.query.filter_by(user_id=47).first()
+        user = User.query.filter_by(user_id=1).first()
         response = {"access_token": guard.encode_jwt_token(user)}
         return response

@@ -10,7 +10,7 @@
             "request": "launch",
             "module": "flask",
             "env": {
-                "FLASK_APP": "elastic",
+                "FLASK_APP": "bench",
                 "FLASK_ENV": "development"
             },
             "args": [

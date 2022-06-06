@@ -1,1 +1,1 @@
-# ElasticMiniProject
+Refer Make File for running on local environment
