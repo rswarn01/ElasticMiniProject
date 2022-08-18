@@ -4,7 +4,6 @@
 import os
 from urllib.parse import quote_plus as urlquote
 from dotenv import load_dotenv
-from apscheduler.executors.pool import ProcessPoolExecutor
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 
 load_dotenv()
@@ -105,6 +104,12 @@ class BaseConfig(object):
     SCHEDULER_ENDPOINT_PREFIX = "api.scheduler."
     APP_ENV = os.environ.get("APP_ENV")
     # EMAIL_SCHEDULED_PERIOD = int(os.getenv("SCHEDULED_EMAIL_DAYS", "90"))
+    
+    #elastic connection
+    ELASTIC_USER = os.getenv("ELASTIC_USER")
+    CERT_FINGERPRINT = os.getenv("CERT_FINGERPRINT")
+    ELASTIC_SECRET =os.getenv("ELASTIC_SECRET")
+    
 
 
 class DevelopmentConfig(BaseConfig):

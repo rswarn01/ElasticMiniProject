@@ -6,10 +6,8 @@ from flask_cors import CORS
 from flask_praetorian import Praetorian
 from flask_migrate import Migrate
 from elastic.utils.flask_azure import FlaskAzure
-from datetime import datetime
 from elasticsearch import Elasticsearch
-
-
+from flask import current_app as app
 from elastic.utils.flask_azure import FlaskAzure
 from elastic.utils.flask_snowflake import FlaskSnowflake
 
@@ -27,7 +25,17 @@ cache = Cache()
 guard = Praetorian()
 azure = FlaskAzure()
 snowflake = FlaskSnowflake()
-es = Elasticsearch('http://localhost:9200')
+
+
+CERT_FINGERPRINT='8a2c2e09cbd4181ae66f1e6e4f2af4dd10ec60e49934796e1521a5616e934e5e'
+ELASTIC_USER='elastic'
+ELASTIC_SECRET='gwoN3lSmL=Vkw2JuM_9U'
+
+es = Elasticsearch(
+    "https://localhost:9200",
+    ssl_assert_fingerprint=CERT_FINGERPRINT,
+    http_auth=(ELASTIC_USER, ELASTIC_SECRET)
+)
 
 
 def init_extensions(app):
@@ -45,18 +53,6 @@ def init_extensions(app):
 
     # snowflake
     snowflake.init_app(app)
-
-    # scheduler
-    try:
-        print("Trying to start scheduler.")
-        logging.info("Trying to start scheduler.")
-        scheduler.init_app(app)
-        scheduler.start()
-        print("started scheduler.")
-        logging.info("started scheduler.")
-    except Exception as exc:
-        print(f"Failed to start scheduler. {exc}")
-        logging.info(f"Failed to start scheduler. {exc}")
 
     # Flask caching
     try:
