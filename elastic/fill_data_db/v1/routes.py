@@ -7,13 +7,11 @@ from elastic.utils import Response
 api = Namespace(
     "data_load",
     description="data load routes",
-    decorators=[flask_praetorian.auth_required],
 )
 
 @api.route("/load_large_data")
 class LoadLargeData(Resource):
     def post(self):
-        parser = reqparse.RequestParser()
         input_sheet = request.files.get("sheet", None)
         if not input_sheet:
             return Response.failure(
@@ -21,5 +19,14 @@ class LoadLargeData(Resource):
                 "Input payload validation failed",
                 payload={"sheet": "Missing required parameter in the post body"},
             )
-        args = parser.parse_args()
         return controllers.load_data_into_db(input_sheet)
+    
+@api.route("/search_data")
+class SearchSupplier(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument(
+            "searching_data", type=str, nullable=False, required=False, location="args"
+        )
+        args = parser.parse_args()
+        return controllers.search_data_from_db(args)
