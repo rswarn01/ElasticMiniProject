@@ -27,14 +27,14 @@ azure = FlaskAzure()
 snowflake = FlaskSnowflake()
 
 
-CERT_FINGERPRINT='8a2c2e09cbd4181ae66f1e6e4f2af4dd10ec60e49934796e1521a5616e934e5e'
-ELASTIC_USER='elastic'
-ELASTIC_SECRET='gwoN3lSmL=Vkw2JuM_9U'
+CERT_FINGERPRINT = "4561c3a1c4395b3bfdb56c794e5cb644451afb9551ab1b8fe0257d0ae383e29b"
+ELASTIC_USER = "elastic"
+ELASTIC_SECRET = "4WiXuTF_3bs7FlA0_vSB"
 
 es = Elasticsearch(
     "https://localhost:9200",
     ssl_assert_fingerprint=CERT_FINGERPRINT,
-    http_auth=(ELASTIC_USER, ELASTIC_SECRET)
+    http_auth=(ELASTIC_USER, ELASTIC_SECRET),
 )
 
 

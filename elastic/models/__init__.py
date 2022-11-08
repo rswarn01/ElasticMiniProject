@@ -305,3 +305,442 @@ class Twits(db.Model):
     uploaded_on = Column(DateTime, default=datetime.now())
     twits= Column(NVARCHAR(5000))
 
+class RegionMaster(db.Model):
+    __tablename__ = "region_master"
+
+    region_id = Column(INTEGER, primary_key=True)
+    kearney_reporting_region = Column(NVARCHAR(150))
+    load_date = Column(DateTime, default=datetime.utcnow)
+    PrimaryKeyConstraint(
+        name=build_constraints(
+            is_pk=True, table1_name="region_master", column_name="region_id"
+        ),
+    )
+
+    @classmethod
+    def get_id_by_name(cls, region):
+        return (
+            cls.query.filter(cls.kearney_reporting_region == region).first().region_id
+        )
+
+class IndustryGroupMaster(db.Model):
+    __tablename__ = "industry_group_master"
+
+    industry_grp_id = Column(INTEGER, primary_key=True)
+    industry = Column(NVARCHAR(100))
+    industry_group = Column(NVARCHAR(100))
+    load_date = Column(DateTime, default=datetime.utcnow)
+    PrimaryKeyConstraint(
+        name=build_constraints(
+            is_pk=True,
+            table1_name="industry_group_master",
+            column_name="industry_grp_id",
+        ),
+    )
+
+
+class Country(db.Model):
+    __tablename__ = "country"
+
+    country_id = Column(INTEGER, primary_key=True)
+    country_code_alpha2 = Column(NVARCHAR(2))
+    country_code_alpha3 = Column(NVARCHAR(3))
+    country = Column(NVARCHAR(150))
+    region_id = Column(
+        ForeignKey(
+            RegionMaster.region_id,
+            name=build_constraints(
+                is_fk=True,
+                table1_name="country",
+                table2_name="region_master",
+                column_name="region_id",
+            ),
+        )
+    )
+    load_date = Column(DateTime, default=datetime.utcnow)
+    PrimaryKeyConstraint(
+        name=build_constraints(
+            is_pk=True, table1_name="country", column_name="country_id"
+        ),
+    )
+    region = relationship("RegionMaster", backref="region", lazy=True)
+
+    @classmethod
+    def get_id_by_name(cls, country_name):
+        return cls.query.filter(cls.country == country_name).first().country_id
+
+
+class CategoryLevel(db.Model):
+    __tablename__ = "category_level"
+    category_level_id = Column(INTEGER, primary_key=True)
+    category_level_name = Column(NVARCHAR(100))
+    PrimaryKeyConstraint(
+        name=build_constraints(
+            is_pk=True, table1_name="category_level", column_name="category_level_id"
+        ),
+    )
+
+
+class CategoryTree(db.Model):
+    __tablename__ = "category_tree"
+
+    category_id = Column(INTEGER, primary_key=True)
+    category_level_id = Column(
+        ForeignKey(
+            CategoryLevel.category_level_id,
+            name=build_constraints(
+                is_fk=True,
+                table1_name="category_tree",
+                table2_name="category_level",
+                column_name="category_level_id",
+            ),
+        )
+    )
+    category_name = Column(NVARCHAR(100))
+    category_desc = Column(NVARCHAR(255))
+    parent_id = Column(
+        ForeignKey(
+            "category_tree.category_id",
+            name=build_constraints(
+                is_fk=True,
+                table1_name="category_tree",
+                table2_name="category_level",
+                column_name="parent_id",
+            ),
+        )
+    )
+    is_active = Column(TINYINT)
+    created_date = Column(DateTime, default=datetime.utcnow)
+    PrimaryKeyConstraint(
+        name=build_constraints(
+            is_pk=True, table1_name="category_tree", column_name="category_id"
+        ),
+    )
+
+    @classmethod
+    def get_id_by_name(cls, category_name):
+        return cls.query.filter(cls.category_name == category_name).first().category_id
+
+    @classmethod
+    def get_id_by_name_parent_id(cls, category_name, parent_id):
+        return (
+            cls.query.filter(
+                cls.category_name == category_name, cls.parent_id == parent_id
+            )
+            .first()
+            .category_id
+        )
+
+    @classmethod
+    def get_id_by_name_for_file_validation(cls, category_name):
+        data = cls.query.filter(cls.category_name == category_name).first()
+        if data is not None:
+            return data.category_id
+
+    @classmethod
+    def get_id_by_name_parent_id_for_file_validation(cls, category_name, parent_id):
+        data = cls.query.filter(
+            cls.category_name == category_name, cls.parent_id == parent_id
+        ).first()
+        if data is not None:
+            return data.category_id
+
+
+
+class SupplierMaster(db.Model):
+    __tablename__ = "supplier_master"
+
+    supplier_id = Column(INTEGER, primary_key=True)
+    supplier_name = Column(NVARCHAR(500))
+    rating = Column(NVARCHAR(10))
+    is_active = Column(TINYINT)
+    created_date = Column(DateTime, default=datetime.utcnow)
+    modified_date = Column(DateTime, onupdate=datetime.utcnow)
+    job_id = Column(NVARCHAR(255))
+
+    PrimaryKeyConstraint(
+        name=build_constraints(
+            is_pk=True, table1_name="supplier_master", column_name="supplier_id"
+        )
+    )
+
+    @staticmethod
+    def update_supplier(
+        supplier_id: int, supplier_name: str = None, is_active=None, job_id: str = None
+    ):
+        supplier = SupplierMaster.query.filter_by(supplier_id=supplier_id).first()
+
+        if supplier_name is not None:
+            supplier.supplier_name = supplier_name
+
+        if is_active is not None:
+            supplier.is_active = is_active
+
+        if job_id is not None:
+            supplier.job_id = job_id
+
+        # pylint: disable=no-member
+        db.session.add(supplier)
+        db.session.commit()
+        return supplier
+
+    @staticmethod
+    def create_supplier(
+        supplier_name,
+        job_id,
+        is_active=1,
+    ):
+        supplier = SupplierMaster.query.filter_by(supplier_name=supplier_name).first()
+
+        if supplier is not None:
+            if not supplier.is_active:
+                supplier.is_active = True
+                db.session.add(supplier)
+                SupplierMaster.update_supplier(
+                    supplier_id=supplier.supplier_id,
+                    supplier_name=supplier_name,
+                    is_active=is_active,
+                    job_id=job_id,
+                )
+                return supplier
+
+        supplier = SupplierMaster()
+        supplier.supplier_name = supplier_name
+        supplier.is_active = is_active
+        supplier.job_id = job_id
+        db.session.add(supplier)
+        db.session.commit()
+        return supplier
+
+
+class SupplierAdditionalAttribute(db.Model):
+    __tablename__ = "supplier_additional_attribute"
+    supplier_attribute_id = Column(INTEGER, primary_key=True)
+    supplier_id = Column(
+        ForeignKey(
+            SupplierMaster.supplier_id,
+            name=build_constraints(
+                is_fk=True,
+                table1_name="supplier_additional_attribute",
+                table2_name="supplier_master",
+                column_name="supplier_id",
+            ),
+        ),
+        nullable=False,
+    )
+    attribute_type = Column(NVARCHAR(100))
+    attribute_type_subgrouping = Column(NVARCHAR(50))
+    attribute_name = Column(NVARCHAR(20))
+    attribute_value = Column(NVARCHAR(200))
+    uploaded_by = Column(
+        ForeignKey(
+            User.user_id,
+            name=build_constraints(
+                is_fk=True,
+                table1_name="supplier_additional_attribute",
+                table2_name="users",
+                column_name="user_id",
+            ),
+        ),
+        nullable=True,
+    )
+
+    is_active = Column(TINYINT)
+    uploaded_on = Column(DateTime, default=datetime.utcnow)
+
+    PrimaryKeyConstraint(
+        name=build_constraints(
+            is_pk=True,
+            table1_name="supplier_additional_attribute",
+            column_name="supplier_attribute_id",
+        )
+    )
+    supplier = relationship(
+        "SupplierMaster", backref="supplier_additional_attribute", lazy=True
+    )
+
+
+class SupplierContact(db.Model):
+    __tablename__ = "supplier_contact"
+    supplier_contact_id = Column(INTEGER, primary_key=True)
+    supplier_id = Column(
+        ForeignKey(
+            SupplierMaster.supplier_id,
+            name=build_constraints(
+                is_fk=True,
+                table1_name="supplier_contact",
+                table2_name="supplier_master",
+                column_name="supplier_id",
+            ),
+        ),
+        nullable=False,
+    )
+
+    contact_name = Column(NVARCHAR(100))
+    email_address = Column(NVARCHAR(50))
+    contact_number = Column(NVARCHAR(20))
+    designation = Column(NVARCHAR(25))
+    is_active = Column(TINYINT)
+    uploaded_by = Column(
+        ForeignKey(
+            User.user_id,
+            name=build_constraints(
+                is_fk=True,
+                table1_name="supplier_contact",
+                table2_name="users",
+                column_name="user_id",
+            ),
+        ),
+        nullable=True,
+    )
+    uploaded_on = Column(DateTime, default=datetime.utcnow)
+
+    PrimaryKeyConstraint(
+        name=build_constraints(
+            is_pk=True,
+            table1_name="supplier_contact",
+            column_name="supplier_contact_id",
+        )
+    )
+
+    supplier = relationship("SupplierMaster", backref="supplier_contact", lazy=True)
+
+
+class SupplierCategory(db.Model):
+    __tablename__ = "supplier_category"
+
+    supplier_category_id = Column(INTEGER, primary_key=True)
+    supplier_id = Column(
+        ForeignKey(
+            SupplierMaster.supplier_id,
+            name=build_constraints(
+                is_fk=True,
+                table1_name="supplier_category",
+                table2_name="supplier_master",
+                column_name="supplier_id",
+            ),
+        ),
+        nullable=False,
+    )
+    client = Column(NVARCHAR(200))
+    leaf_category_id = Column(
+        ForeignKey(
+            CategoryTree.category_id,
+            name=build_constraints(
+                is_fk=True,
+                table1_name="supplier_category",
+                table2_name="category_tree",
+                column_name="leaf_category_id",
+            ),
+        )
+    )
+    spend_year = Column(INTEGER)
+    spend_usd = Column(DECIMAL(20, 4))
+    region_id = Column(
+        ForeignKey(
+            RegionMaster.region_id,
+            name=build_constraints(
+                is_fk=True,
+                table1_name="supplier_category",
+                table2_name="region_master",
+                column_name="region_id",
+            ),
+        )
+    )
+    country_id = Column(
+        ForeignKey(
+            Country.country_id,
+            name=build_constraints(
+                is_fk=True,
+                table1_name="supplier_category",
+                table2_name="country",
+                column_name="country_id",
+            ),
+        )
+    )
+    industry_grp_id = Column(
+        ForeignKey(
+            IndustryGroupMaster.industry_grp_id,
+            name=build_constraints(
+                is_fk=True,
+                table1_name="supplier_category",
+                table2_name="industry_group_master",
+                column_name="industry_grp_id",
+            ),
+        )
+    )
+    uploaded_by = Column(
+        ForeignKey(
+            User.user_id,
+            name=build_constraints(
+                is_fk=True,
+                table1_name="supplier_category",
+                table2_name="users",
+                column_name="user_id",
+            ),
+        ),
+        nullable=False,
+    )
+    is_active = Column(TINYINT)
+    uploaded_on = Column(DateTime, onupdate=datetime.utcnow)
+
+    PrimaryKeyConstraint(
+        name=build_constraints(
+            is_pk=True,
+            table1_name="supplier_category",
+            column_name="supplier_category_id",
+        ),
+    )
+
+    Country = relationship("Country", backref="supplier_category", lazy=True)
+    Industry_Group_Master = relationship(
+        "IndustryGroupMaster", backref="supplier_category", lazy=True
+    )
+    Leaf_Category = relationship("CategoryTree", backref="supplier_category", lazy=True)
+    Region = relationship("RegionMaster", backref="supplier_category", lazy=True)
+    Supplier = relationship("SupplierMaster", backref="supplier_category", lazy=True)
+
+class SupplierMetadata(db.Model):
+    __tablename__ = "supplier_metadata"
+
+    supplier_metadata_id = Column(INTEGER, primary_key=True)
+    supplier_id = Column(
+        ForeignKey(
+            SupplierMaster.supplier_id,
+            name=build_constraints(
+                is_fk=True,
+                table1_name="supplier_metadata",
+                table2_name="supplier_master",
+                column_name="supplier_id",
+            ),
+        ),
+        nullable=False,
+    )
+    revenue_year = Column(INTEGER)
+    revenue_usd = Column(DECIMAL(20, 4))
+    credit_score = Column(INTEGER)
+    diversity_score = Column(INTEGER)
+    supplier_address = Column(NVARCHAR(200))
+    uploaded_by = Column(
+        ForeignKey(
+            User.user_id,
+            name=build_constraints(
+                is_fk=True,
+                table1_name="supplier_metadata",
+                table2_name="users",
+                column_name="user_id",
+            ),
+        ),
+        nullable=True,
+    )
+    uploaded_on = Column(DateTime, onupdate=datetime.utcnow)
+    PrimaryKeyConstraint(
+        name=build_constraints(
+            is_pk=True,
+            table1_name="supplier_metadata",
+            column_name="supplier_metadata_id",
+        ),
+    )
+
+    Supplier = relationship("SupplierMaster", backref="supplier_metadata", lazy=True)
+

@@ -1,11 +1,14 @@
 import logging
 import json
-from urllib import response
+import re
+import numpy as np
 import pandas as pd
-from flask import jsonify
-from elastic.extensions import es
+from flask import current_app as app
+from elastic.extensions import es, db
 from elasticsearch import helpers
 from elastic.utils import Response
+from elastic.models import SupplierContact, SupplierMaster,SupplierAdditionalAttribute, SupplierMetadata
+from ..schema import SupplierMasterSchema
 
 
 def insert():
@@ -30,7 +33,7 @@ def insert():
         return Response.success('Data inserted successfully')
     except Exception as e:
         logging.info(f"Something wrong, can't insert given data. {e}")
-        return Response.failure(400, "Something wrong, can't insert given data", payload=str(e))
+        return Response.failure(500, "Something wrong, can't insert given data", payload=str(e))
     
 def insert_bulk_data(file):
     # Open csv file and bulk upload
@@ -165,14 +168,51 @@ def search(args):
         ? matches any character and * matches zero or more characters'''
         #highlight to emphasize text to highlight.
         
+        # body={
+        #     "query":{
+        #         "query_string":{
+        #             "query":f"*{args['searching_data']}*",
+        #         }
+        #     },
+        #     'from': (page - 1) * per_page, 'size': per_page
+        # }
         body={
             "query":{
                 "query_string":{
-                    "query":f"*{args['searching_data']}*",
+                    "query":f"{args['searching_data']}",
+                     "fields": ["supplier_contact_id"]
                 }
-            },
-            'from': (page - 1) * per_page, 'size': per_page
-        }
+            }
+            }
+        
+        #Group by query
+        # body={
+        #     "query": {
+        #         "multi_match": {
+        #         "query": "itchfo",
+        #         "fields": ["user_name", "tweets"]
+        #         }
+        #     },
+        #     "aggs": {
+        #         "by_email": { # Top level aggregation: Group by email
+        #         "terms": {
+        #             "field": "user_name",
+        #             "size": 10,
+        #             # Order results by sub-aggregation named 'max_score'
+        #             "order": { "max_score": "desc" } 
+        #         },
+        #         # aggs: { # Sub-aggregations
+        #         #     # Include the top 15 hits on each bucket in the results
+        #         #     by_top_hit: { top_hits: { size: 15 } },
+                    
+        #         #     # Keep a running count of the max score by any member of this bucket
+        #         #     max_score: { max: { lang: "expression", script: "_score" } }
+        #         # }
+        #         }
+        #     }
+        #     }
+        
+        
         # body={
         #     "query":{
         #         "query_string":{
@@ -207,13 +247,202 @@ def search(args):
         #     }
         # }
         
-        results=es.search(index='tweets', body=body)
+        results=es.search(index='supplier_data', body=body)
         response=results['hits']
-        
         return Response.success(response, pagination=results['hits']['total'])
     except Exception as e:
         logging.info(f"Something wrong, can't search given data. {e}")
-        return Response.failure(400, "Something wrong, can't search given data", payload=str(e))
+        return Response.failure(500, "Something wrong, can't search given data", payload=str(e))
 
-
+def delete_index(args):
+    try:
+        es.indices.delete(index=args['index'], ignore=[400, 404])
+        return Response.success('Index deleted successfully')
+    except Exception as e:
+        logging.info(f"Something wrong. {e}")
+        return Response.failure(500, "Something wrong", payload=str(e))
     
+
+def add_new_suppliers_generate_ingest_file(input_sheet):
+    """Validate data as per given fields."""
+
+    # As part of performance: We will fetch all the sheets at once as df_dict
+    # and Store them in Redis and fetch for further sections
+
+    # to accumulate all the error messages as string
+    supplier_data = SupplierMaster.query.with_entities(
+        SupplierMaster.supplier_name
+    ).all()
+    supplier_df = pd.DataFrame(SupplierMasterSchema(many=True).dump(supplier_data))
+    if not supplier_df.empty:
+        supplier_df["supplier_name"] = supplier_df["supplier_name"].str.strip()
+    ######## BASIC VALIDATIONS ########
+
+    try:
+        # NOTE: "copy" function is imp here, or else the changes in df will be reflected in
+        # original dataframe and cause unexpected behaviour
+        new_df = pd.read_excel(input_sheet,sheet_name='1_Supplier category Data')
+
+        if new_df.empty:
+            logging.info("Sheet is empty.")
+            return
+
+        new_df["Supplier Name"] = new_df["Supplier Name"].str.strip()
+        distinct_suppliers = new_df.drop_duplicates(
+            subset=["Supplier Name"]
+        )
+        if not supplier_df.empty:
+            to_be_created_suppliers = distinct_suppliers[
+                ~distinct_suppliers["Supplier Name"]
+                .str.lower()
+                .isin(supplier_df["supplier_name"].str.lower())
+            ]
+        else:
+            to_be_created_suppliers = distinct_suppliers
+        to_be_created_suppliers.rename(
+            {"Supplier Name": "supplier_name"}, axis=1, inplace=True
+        )
+        to_be_created_suppliers["is_active"] = 1
+        db.session.bulk_insert_mappings(
+            SupplierMaster, to_be_created_suppliers.to_dict("records")
+        )
+        # upload a separate file for supplier code and Name combination.
+        db.session.commit()
+        return Response.success('Data filled')
+
+    except Exception as exc:
+        logging.error("Error with task********************* %s", str(exc))
+        # NOTE handle custom exception before general exception.
+        return Response.failure(500, "Something wrong", payload=str(exc))
+
+
+def fill_additional_attribute(input_sheet):
+    """Validate data as per given fields."""
+
+    # As part of performance: We will fetch all the sheets at once as df_dict
+    # and Store them in Redis and fetch for further sections
+
+
+    try:
+        # NOTE: "copy" function is imp here, or else the changes in df will be reflected in
+        # original dataframe and cause unexpected behaviour
+        new_df = pd.read_excel(input_sheet,sheet_name='Sheet1')
+        new_df = new_df.replace({np.nan: None})
+
+        if new_df.empty:
+            logging.info("Sheet is empty.")
+            return
+
+        # new_df.rename(
+        #     {"Supplier Code": "supplier_id",
+        #      "Attribute Type":'attribute_type',
+        #      "Attribute Type SubGrouping":'attribute_type_subgrouping',
+        #      "Attribute Name":'attribute_name',
+        #      "Attribute Value":'attribute_value'}, axis=1, inplace=True
+        # )
+
+        db.session.bulk_insert_mappings(
+            SupplierMetadata, new_df.to_dict("records")
+        )
+        # upload a separate file for supplier code and Name combination.
+        db.session.commit()
+        return Response.success('Data filled')
+
+    except Exception as exc:
+        logging.error("Error with task********************* %s", str(exc))
+        # NOTE handle custom exception before general exception.
+        return Response.failure(500, "Something wrong", payload=str(exc))
+    
+    
+
+def create_new_index_dummy(args):
+    try:
+        query=db.session.query(SupplierAdditionalAttribute, SupplierContact,SupplierMaster).join(
+                SupplierAdditionalAttribute,
+                SupplierAdditionalAttribute.supplier_id
+                == SupplierMaster.supplier_id,
+            ).join(SupplierContact,
+                   SupplierContact.supplier_id
+                   == SupplierMaster.supplier_id
+        ).with_entities(SupplierMaster.supplier_id,SupplierMaster.supplier_name,SupplierMaster.is_active.label("supplier_is_active"),SupplierMaster.rating,SupplierMaster.job_id,SupplierAdditionalAttribute.supplier_attribute_id,SupplierAdditionalAttribute.attribute_type,SupplierAdditionalAttribute.attribute_type_subgrouping,SupplierAdditionalAttribute.attribute_name,SupplierAdditionalAttribute.attribute_value,SupplierAdditionalAttribute.uploaded_by.label('supplier_attribute_uploaded_by'),SupplierAdditionalAttribute.is_active.label('attribute_is_active'), SupplierContact.supplier_contact_id,SupplierContact.contact_name,SupplierContact.email_address,SupplierContact.contact_number,SupplierContact.designation,SupplierContact.uploaded_by.label('supplier_contact_uploaded_by'),SupplierContact.is_active.label("supplier_contact_is_active"),)
+        
+        all_data=query.filter(SupplierAdditionalAttribute.is_active==True,SupplierMaster.is_active==True, SupplierContact.is_active==True).all()
+        df = pd.DataFrame(all_data)
+        df = df.replace(np.nan, None)
+        json_str = df.to_json(orient='records')
+        json_records = json.loads(json_str)
+
+        index_name = args['index']
+        es.indices.delete(index=index_name, ignore=[400, 404])
+        es.indices.create(index=index_name, ignore=400)
+        action_list = []
+        for row in json_records:
+            record ={
+                '_op_type': 'index',
+                '_index': index_name,
+                '_source': row
+            }
+            action_list.append(record)
+        helpers.bulk(es, action_list)
+        return Response.success('index created successfully')
+        
+    except Exception as exc:
+        logging.error(str(exc))
+        return Response.failure(500, "Something wrong", payload=str(exc))
+    
+def update_delete_document(args):
+    try:
+        page=1
+        per_page=50
+        body={
+            "query":{
+                "query_string":{
+                    "query":f"*{args['searching_data']}*",
+                }
+            },
+            'from': (page - 1) * per_page, 'size': per_page
+        }
+        #r = es.index(index="supplier_additonal_attribute", body=body)
+        es.update(index='supplier_additonal_attribute',id='hzwxFIMBDiasRSYAT06Y',
+                body={"doc": {"attribute_value":'PFC'}})
+        return Response.success('Document updated successfully')
+        #es.delete(index="supplier_additonal_attribute")
+        #return Response.success('Document deleted successfully')
+    except Exception as exc:
+        logging.error(str(exc))
+        return Response.failure(500, "Something wrong", payload=str(exc))
+    
+
+def sync_db_and_elastic(args):
+    try:
+        document_id=None
+        #update db table data
+        SupplierAdditionalAttribute.query.filter(SupplierAdditionalAttribute.supplier_attribute_id==args['supplier_attribute_id']
+        ).update({SupplierAdditionalAttribute.attribute_value:args['new_value']})
+
+        
+        #find document in elastic
+        body={
+            "query":{
+                "query_string":{
+                    "query":f"{args['supplier_attribute_id']} AND {args['supplier_id']}",
+                     "fields": ["supplier_attribute_id","supplier_id"]
+                }
+            }
+            }
+
+        results=es.search(index='supplier_additonal_attribute', body=body)
+        response=results['hits']['hits']
+        if len(response)==1:
+            document_id=response[0]['_id']
+
+        db.session.commit()
+        #update Elastic only if we get that respective document in elasticsearch
+        if document_id:
+            es.update(index='supplier_additonal_attribute',id=document_id,
+                    body={"doc": {"attribute_value":f"{args['new_value']}"}})
+        return Response.success("Value updated in both DB and Elasticserach")
+        
+    except Exception as exc:
+        logging.error(str(exc))
+        return Response.failure(500, "Something wrong", payload=str(exc))
