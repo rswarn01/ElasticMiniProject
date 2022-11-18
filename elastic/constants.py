@@ -251,7 +251,9 @@ def get_archive_path(file_name=None):
 
     if file_name:
         archive_paths["file_name"] = MODULE_ADD_NEW_RECORD_ARCHIVE.format(
-            HARMONIZED_DIRNAME, current_timestamp, file_name.replace(" ", "_").lower(),
+            HARMONIZED_DIRNAME,
+            current_timestamp,
+            file_name.replace(" ", "_").lower(),
         )
     archive_paths["usage_tracking"] = USAGE_TRACKING_DIR_ARCHIVE.format(
         current_timestamp
