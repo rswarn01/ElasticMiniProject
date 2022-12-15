@@ -41,53 +41,29 @@ services:
     expose:
       - "1433"
   # mysql:
-
   #   container_name: elastic_mysql
-
   #   image: mysql
-
   #   networks:
-
   #     - elastic_network
-
   #     # environment - DEV only - can be moved to separate env file
-
   #   environment:
-
   #     MYSQL_ROOT_USER: root
-
   #     MYSQL_ROOT_PASSWORD: password
-
   #     MYSQL_DATABASE: elastic
-
   #     # Port 3308 is exposed for DEV only. To connect from host machine to container.
-
   #     # Container to container connection will happen on port 3306
-
   #   ports:
-
   #     - "3308:3306"
-
   #   expose:
-
   #     - "3306"
-
   #     # volumes - DEV only - to retain the stored data while development
-
   #   #volumes:
-
   #   #  - "./docker/volumes/vol_mysql:/var/lib/mysql:rw"
-
   #   command:
-
   #     [
-
   #       "mysqld",
-
   #       "--character-set-server=latin1",
-
   #       "--collation-server=latin1_swedish_ci",
-
   #     ]
   redis:
     container_name: elastic_redis
@@ -105,6 +81,23 @@ services:
         "-c",
         'exec redis-server --requirepass "$CACHE_SECRET"'
       ]
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.1.0
+    container_name: elasticsearch
+    ports:
+      - 9200:9200
+      - 9300:9300
+    environment:
+      ES_JAVA_OPTS: '-Xms256m -Xmx256m'
+      network.bind_host: 0.0.0.0
+      network.host: 0.0.0.0
+      discovery.type: single-node
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.1.0
+    container_name: kibana
+    ports:
+      - 5601:5601
+
 networks:
   elastic_network:
     driver: bridge
