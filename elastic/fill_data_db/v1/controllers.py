@@ -1,5 +1,6 @@
 import logging
 import pandas as pd
+from sqlalchemy import or_
 from elastic.extensions import db
 from elastic.utils import Response
 from elastic.models import (
@@ -23,7 +24,7 @@ def load_data_into_db(file):
     
 def search_data_from_db(args):
     try:
-        data=Twits.query.with_entities(Twits.twit_id,Twits.user_name,Twits.twits).filter(Twits.twits.ilike(f"%{args['searching_data']}%")).all()
+        data=Twits.query.with_entities(Twits.twit_id,Twits.user_name,Twits.twits).filter(or_(Twits.twits.ilike(f"%{args['searching_data']}%"),Twits.user_name.ilike(f"%{args['searching_data']}%"))).all()
         data_df=pd.DataFrame(data)
         response = data_df.to_dict("records")
         return Response.success(response)

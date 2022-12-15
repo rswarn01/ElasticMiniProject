@@ -1,9 +1,10 @@
-from flask import Flask, Blueprint, jsonify, redirect
+from flask import Flask, Blueprint, jsonify, redirect, render_template
 from flask_restx import Api as RestX_Api
 from elastic.models import User
 from os import getenv
 from elastic.commands import elastic_cli
 from elastic import extensions
+from elastic.crud.v1.controllers import search
 
 from elastic.auth.v1 import auth_api_v1
 from elastic.fill_data_db.v1 import fill_data_db_api_v1
@@ -32,6 +33,7 @@ rest_api = RestX_Api(
 rest_api.add_namespace(auth_api_v1, path="/v1/auth")
 rest_api.add_namespace(fill_data_db_api_v1, path="/v1/data_fill")
 rest_api.add_namespace(crud_api_v1, path="/v1/crud-operations")
+
 
 def create_app():
     """Create the flask app and intialize all the extensions"""
@@ -72,6 +74,10 @@ def create_app():
     @app.route("/")
     def redirect_to_swagger_spec():
         return redirect("/api")
+
+    @app.route("/search")
+    def get_search_data():
+        return render_template("output.html")
 
     @app.shell_context_processor
     def shell_context():  # pylint: disable=unused-variable # pragma: no cover

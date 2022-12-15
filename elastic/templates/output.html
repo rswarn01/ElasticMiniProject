@@ -1,0 +1,263 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>FlaskTest</title>
+<style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      font: 16px Arial;  
+    }
+    
+    /*the container must be positioned relative:*/
+    .autocomplete {
+      position: relative;
+      display: inline-block;
+    }
+    .search_bar{
+        margin:50px auto;
+        display: flex;
+        justify-content: center;
+        flex-direction: column;
+        align-items: center;
+    }
+    input {
+      border: 1px solid transparent;
+      background-color: #f1f1f1;
+      padding: 10px;
+      font-size: 16px;
+    }
+    
+    input[type=text] {
+      background-color: #f1f1f1;
+      width: 100%;
+    }
+    
+    input[type=submit] {
+      background-color: DodgerBlue;
+      color: #fff;
+      cursor: pointer;
+    }
+    
+    .autocomplete-items {
+      position: absolute;
+      border: 1px solid #d4d4d4;
+      border-bottom: none;
+      border-top: none;
+      z-index: 99;
+      /*position the autocomplete items to be the same width as the container:*/
+      top: 100%;
+      left: 0;
+      right: 0;
+    }
+    
+    .autocomplete-items div {
+      padding: 10px;
+      cursor: pointer;
+      background-color: #fff; 
+      border-bottom: 1px solid #d4d4d4; 
+    }
+    
+    /*when hovering an item:*/
+    .autocomplete-items div:hover {
+      background-color: #e9e9e9; 
+    }
+    
+    /*when navigating through the items using the arrow keys:*/
+    .autocomplete-active {
+      background-color: DodgerBlue !important; 
+      color: #ffffff; 
+    }
+    .card{
+        border: 2px solid #66c2c4;
+        padding: 1rem;
+        margin-bottom: 20px;
+        background: aliceblue;
+        }
+        .attribute {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+        font-size: 16px;
+        }
+        h2{
+            margin: 0 10px;
+        font-size: 18px;
+        }
+        p{
+        margin: 0;
+        }
+        #no-result-fount{
+            display:none;
+        }
+        #info{
+            margin-top: 20px;
+        }
+        .cervellologo{
+            object-fit: contain;
+            margin-bottom: 1rem;
+        }
+        button{
+            background: #526f79;
+            padding: 10px 15px;
+            margin-left: 12px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+        }
+        .highlightSearch{
+            font-weight: bold;
+            color: #ec4470;
+        }
+    </style>
+</head>
+<body>
+    
+    <div class='search_bar'> 
+    <img class='cervellologo' src="data:image/png;base64,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" alt="cervello logo" width="350" height="200">
+    
+    <div>
+    <div class="autocomplete" style="width:300px;">
+
+      <input id="myInput" type="text" name="searchedSuppliers" placeholder="Supplier">
+    </div>
+    <button type="button" onclick='userAction()'>Booom !!</button>
+    <button type="button" onclick='twitterSearch()'>Hit Twitter !!</button>
+    </div>
+
+    <br>
+    <div id="info">
+    </div>
+    <div id="no-result-fount">
+      <h2>No Result Found!</h2>
+    </div>
+</div>
+
+</body>
+
+<script> 
+
+    function highlight(words, search_text) {
+        let regex = new RegExp(search_text, "gi");
+        words = words.replace(regex, function (search) {
+          return '<span class="highlightSearch">' + search + "</span>";
+        });
+        return words;
+      };
+
+    async function userAction() {
+    var array=[];
+    var search_text=document.getElementById('myInput').value;
+    const formData = new FormData();
+    formData.append('searching_data', search_text);
+    console.log(search_text);
+    const response = await fetch("http://127.0.0.1:5000/api/v1/crud-operations/search_data", {
+     
+        // Adding method type
+        method: "POST",
+         
+        // Adding body or contents to send
+        //body: JSON.stringify({
+        //    searching_data: search_text,
+        //}),
+         
+        // Adding headers to the request
+        
+          body: formData,
+    })
+     
+    // Converting to JSON
+    .then(response => response.json())
+     
+    // Displaying results to console
+    //.then(json => console.log(json)
+
+    .then((json) => {
+        if (json?.data) {
+    array = json.data.hits;
+}
+})
+    let regex = new RegExp(search_text, "gi");
+        console.log(array);
+        if(array.length > 0){
+            document.getElementById("no-result-fount").style.display = "none";
+            document.getElementById("info").style.display = "block";
+            let text = "";
+                for (let i = 0; i < array.length; i++) {
+                text += "<div class='card'><div class='attribute'><h2>Supplier Name:</h2><p>"+ highlight(array[i]._source.supplier_name,search_text)+"</p></div>"+
+                        "<div class='attribute'><h2>Contact name:</h2><p>"+highlight(array[i]._source.contact_name,search_text)+"</p></div>"+
+                        "<div class='attribute'><h2>contact Number:</h2><p>"+array[i]._source.contact_number+"</p></div>"+
+                        "<div class='attribute'><h2>Designation:</h2><p>"+highlight(array[i]._source.designation,search_text)+"</p></div>"+
+                        "<div class='attribute'><h2>Email:</h2><p>"+array[i]._source.email_address+"</p></div></div>";
+                }
+
+            document.getElementById("info").innerHTML = text;
+            }
+            else{
+            document.getElementById("no-result-fount").style.display = "block";
+            document.getElementById("info").style.display = "none";
+            }
+    //const myJson = await response.json(); //extract JSON from the http response
+    // do something with myJson
+
+}
+    async function twitterSearch() {
+        var array=[];
+        var search_text=document.getElementById('myInput').value;
+        const formData = new FormData();
+        formData.append('searching_data', search_text);
+        console.log(search_text);
+        const response = await fetch("http://127.0.0.1:5000/api/v1/crud-operations/search_twitter_data", {
+        
+            // Adding method type
+            method: "POST",
+            
+            // Adding body or contents to send
+            //body: JSON.stringify({
+            //    searching_data: search_text,
+            //}),
+            
+            // Adding headers to the request
+            
+            body: formData,
+        })
+        
+        // Converting to JSON
+        .then(response => response.json())
+        
+        // Displaying results to console
+        //.then(json => console.log(json)
+
+        .then((json) => {
+            if (json?.data) {
+        array = json.data.hits;
+    }
+    })
+            console.log(array);
+            if(array.length > 0){
+                document.getElementById("no-result-fount").style.display = "none";
+                document.getElementById("info").style.display = "block";
+                let text = "";
+                    for (let i = 0; i < array.length; i++) {
+                    text += "<div class='card'><div class='attribute'><h2>User Name:</h2><p>"+highlight(array[i]._source.user_name,search_text)
+                        +"</p></div><div class='attribute'><h2>Tweet:</h2><p>"+highlight(array[i]._source.tweets,search_text)+"</p></div>"+
+                            "<div class='attribute'><h2>Tweet Date:</h2><p>"+highlight(array[i]._source.update_date,search_text)+"</p></div></div>";
+                    }
+
+                document.getElementById("info").innerHTML = text;
+                }
+                else{
+                document.getElementById("no-result-fount").style.display = "block";
+                document.getElementById("info").style.display = "none";
+                }
+        //const myJson = await response.json(); //extract JSON from the http response
+        // do something with myJson
+
+    }
+
+</script>
+</html>
